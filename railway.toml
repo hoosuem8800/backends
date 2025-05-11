@@ -1,0 +1,12 @@
+[build]
+builder = "nixpacks"
+buildCommand = "chmod +x build.sh && ./build.sh"
+
+[deploy]
+startCommand = "gunicorn backend_new.wsgi:application"
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+
+[phases.setup]
+nixPkgs = ["gcc", "python311", "python311Packages.pip"] 
