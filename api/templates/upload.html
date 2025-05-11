@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>X-ray Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        form {
+            margin-top: 20px;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .file-types {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>X-ray Analysis</h1>
+    <p>Upload a chest X-ray image for pneumonia detection</p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="xray" accept="image/jpeg,image/jpg,image/png" required>
+        <p class="file-types">Accepted file types: JPEG, JPG, PNG</p>
+        <br>
+        <button type="submit">Analyze</button>
+    </form>
+</body>
+</html> 

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 4px;
+        }
+        .normal {
+            background-color: #90EE90;
+            color: #006400;
+        }
+        .pneumonia {
+            background-color: #FFB6C1;
+            color: #8B0000;
+        }
+        .probability {
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+        .back-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="result {% if result == 'Normal' %}normal{% else %}pneumonia{% endif %}">
+        <h2>{{ result }}</h2>
+        <p class="probability">Confidence: {{ probability }}</p>
+    </div>
+    <a href="{% url 'predict' %}" class="back-button">Analyze Another Image</a>
+</body>
+</html> 
