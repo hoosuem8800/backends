@@ -1,6 +1,6 @@
 [build]
-builder = "nixpacks"
-buildCommand = "chmod +x build.sh && ./build.sh"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "gunicorn backend_new.wsgi:application"
