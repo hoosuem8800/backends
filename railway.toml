@@ -4,8 +4,8 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/health/"
-healthcheckTimeout = 300
+healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
 
-[phases.setup]
-nixPkgs = ["gcc", "python311", "python311Packages.pip"] 
+[variables]
+PORT = "8000" 
