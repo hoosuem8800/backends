@@ -16,13 +16,28 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
+from django.db import connections
+from django.db.utils import OperationalError
 
-# Simple health check view
+# Enhanced health check view
 def health_check(request):
-    return HttpResponse("OK", status=200)
+    # Check database connection
+    try:
+        db_conn = connections['default']
+        db_conn.cursor()
+        db_status = "connected"
+    except OperationalError:
+        db_status = "disconnected"
+    
+    # Return status
+    status = {
+        "status": "ok",
+        "database": db_status
+    }
+    return JsonResponse(status)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

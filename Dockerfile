@@ -16,12 +16,23 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Create a startup script
+# Create a startup script with better error handling
 RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Starting Django application..."\n\
+echo "DATABASE_URL: ${DATABASE_URL:-Not set}"\n\
+echo "Checking database connection..."\n\
+python manage.py check_db\n\
+echo "Running migrations..."\n\
 python manage.py migrate --noinput\n\
+echo "Collecting static files..."\n\
 python manage.py collectstatic --noinput\n\
-gunicorn backend_new.wsgi --log-file - --bind 0.0.0.0:8000' > /app/start.sh \
+echo "Starting Gunicorn server..."\n\
+gunicorn backend_new.wsgi --log-file - --bind 0.0.0.0:8000\n' > /app/start.sh \
     && chmod +x /app/start.sh
+
+# Make sure static directory exists
+RUN mkdir -p static media
 
 # Expose the port the app runs on
 EXPOSE 8000
