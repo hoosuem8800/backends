@@ -53,6 +53,7 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import NotFound
 from django.utils.dateparse import parse_datetime
+from .ml_service import ml_service
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -1429,9 +1430,6 @@ class NotificationViewSet(viewsets.ModelViewSet):
 @permission_classes([IsAuthenticated])
 def predict_scan(request):
     try:
-        # Get the ML service URL from settings
-        ml_service_url = getattr(settings, 'ML_SERVICE_URL', 'http://localhost:8001')
-        
         # Get the file from the request - try both 'file' and 'image' field names
         file = request.FILES.get('file') or request.FILES.get('image')
         if not file:
@@ -1440,50 +1438,57 @@ def predict_scan(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Prepare the file for sending to ML service
-        files = {'file': (file.name, file, file.content_type)}
+        # Use our ML service to analyze the X-ray
+        result = ml_service.analyze_xray(file)
         
-        try:
-            # Send request to ML service
-            response = requests.post(
-                f'{ml_service_url}/predict',
-                files=files,
-                timeout=30  # Increased timeout for ML processing
-            )
+        # Check if analysis was successful
+        if result['success']:
+            # Get the Scan model if it exists
+            scan_id = request.data.get('scan_id')
+            if scan_id:
+                try:
+                    scan = Scan.objects.get(id=scan_id, user=request.user)
+                    
+                    # Update the scan with ML results
+                    scan.status = 'completed'
+                    scan.result = f"Diagnosis: {result['diagnosis']} with {result['confidence']}% confidence"
+                    
+                    # Set result_status based on diagnosis
+                    if result['diagnosis'] == 'Normal':
+                        scan.result_status = 'healthy'
+                        scan.requires_consultation = False
+                    elif result['diagnosis'] == 'Pneumonia':
+                        scan.result_status = 'requires_consultation'
+                        scan.requires_consultation = True
+                    else:  # Lung_Opacity
+                        scan.result_status = 'optional_consultation'
+                        scan.requires_consultation = True
+                    
+                    # Save confidence score
+                    scan.confidence_score = result['confidence']
+                    scan.save()
+                    
+                    # Include scan info in response
+                    result['scan_updated'] = True
+                    result['scan_id'] = scan.id
+                    
+                except Scan.DoesNotExist:
+                    # Scan not found but continue with prediction
+                    result['scan_updated'] = False
             
-            # Check if the request was successful
-            if response.status_code == 200:
-                return Response(response.json())
-            else:
-                logger.error(f"ML service returned error: {response.status_code} - {response.text}")
-                return Response(
-                    {'error': 'ML service error', 'details': response.text},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response(result)
+        else:
+            # ML service error
+            logger.error(f"ML service error: {result['error']}")
+            return Response(
+                {'error': 'ML service error', 'details': result['error']},
+                status=result.get('status_code', status.HTTP_500_INTERNAL_SERVER_ERROR)
+            )
                 
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Could not connect to ML service at {ml_service_url}")
-            return Response(
-                {'error': 'ML service is not available. Please try again later.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-        except requests.exceptions.Timeout:
-            logger.error("ML service request timed out")
-            return Response(
-                {'error': 'ML service request timed out. Please try again.'},
-                status=status.HTTP_504_GATEWAY_TIMEOUT
-            )
-        except requests.exceptions.RequestException as e:
-            logger.error(f"ML service error: {str(e)}")
-            return Response(
-                {'error': f'ML service error: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-            
     except Exception as e:
-        logger.error(f"Error in predict_scan: {str(e)}")
+        logger.error(f"Prediction error: {str(e)}")
         return Response(
-            {'error': str(e)},
+            {'error': f'Error processing request: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -1511,37 +1516,29 @@ def predict_view(request):
                     })
             else:
                 content_type = uploaded_file.content_type
-                
-            # Send to ML service with correct content type
-            files = {'file': (uploaded_file.name, uploaded_file, content_type)}
-            response = requests.post(
-                'http://localhost:8001/predict',
-                files=files
-            )
             
-            # Check response status
-            if response.status_code != 200:
-                error_msg = f"ML service returned error: {response.status_code}"
-                if response.text:
-                    error_msg += f" - {response.text}"
-                print(error_msg)
+            # Use our ML service to analyze the X-ray
+            result = ml_service.analyze_xray(uploaded_file)
+            
+            # Check if analysis was successful
+            if result['success']:
+                # Debug output
+                print(f"ML API Response: {result}")
+                
+                # Extract results
+                diagnosis = result['diagnosis']
+                confidence = result['confidence']
+                
+                return render(request, 'result.html', {
+                    'result': diagnosis,
+                    'probability': f"{confidence:.2f}%",  # Format confidence as percentage
+                    'details': result.get('details', {})
+                })
+            else:
+                # ML service error
+                error_msg = result.get('error', 'Unknown error')
+                print(f"ML API error: {error_msg}")
                 return render(request, 'error.html', {'error': error_msg})
-                
-            data = response.json()
-            
-            # Debug output
-            print(f"ML API Response: {data}")
-            
-            if 'error' in data:
-                return render(request, 'error.html', {'error': data['error']})
-
-            # Use correct fields from API response
-            result = data['diagnosis']
-            confidence = data['confidence']
-            return render(request, 'result.html', {
-                'result': result,
-                'probability': f"{confidence:.2f}%"  # Format confidence as percentage
-            })
 
         except Exception as e:
             error_message = str(e)

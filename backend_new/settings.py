@@ -236,6 +236,7 @@ REST_FRAMEWORK = {
 
 # ML Service URL
 ML_SERVICE_URL = os.environ.get('ML_SERVICE_URL', 'http://localhost:8001')
+ML_API_URL = os.environ.get('ML_API_URL', 'https://sage-production.up.railway.app')
 
 # JWT settings
 SIMPLE_JWT = {

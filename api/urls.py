@@ -27,4 +27,5 @@ urlpatterns = [
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('predict-scan/', predict_scan, name='predict-scan'),
     path('predict/', predict_view, name='predict'),
+    path('xray-analyze/', predict_scan, name='xray-analyze'),  # Alternative endpoint for clarity
 ] 

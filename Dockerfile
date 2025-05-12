@@ -26,5 +26,8 @@ RUN mkdir -p static media && chmod +x start.sh
 # Expose the port the app runs on
 EXPOSE 8000
 
+# Add ML_API_URL to the environment variables
+ENV ML_API_URL=https://sage-production.up.railway.app
+
 # Command to run the application
 CMD ["./start.sh"] 
