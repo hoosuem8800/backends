@@ -178,6 +178,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
     "http://localhost:5173",  # Vite default port
     "http://127.0.0.1:5173",  # Vite default port
+    "https://backends-production-d57e.up.railway.app",  # Railway domain
 ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -203,6 +204,16 @@ CORS_EXPOSE_HEADERS = ['Content-Disposition']
 
 # Add CORS URL patterns - make this more permissive to ensure all API routes work
 CORS_URLS_REGEX = r'^/.*$'
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    "https://backends-production-d57e.up.railway.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8080",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
