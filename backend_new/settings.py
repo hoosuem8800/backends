@@ -179,6 +179,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite default port
     "http://127.0.0.1:5173",  # Vite default port
     "https://backends-production-d57e.up.railway.app",  # Railway domain
+    "https://chopper-mu.vercel.app",  # Vercel frontend domain
 ]
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -213,6 +214,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8080",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://chopper-mu.vercel.app",  # Vercel frontend domain
 ]
 
 # Default primary key field type
