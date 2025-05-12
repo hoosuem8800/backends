@@ -32,10 +32,24 @@ class ExceptionHandlingMiddleware(MiddlewareMixin):
 
 class CORSHeadersMiddleware(MiddlewareMixin):
     def process_response(self, request, response):
-        response['Access-Control-Allow-Origin'] = settings.CORS_ORIGIN_WHITELIST
+        # Get allowed origins from settings
+        origins = getattr(settings, 'CORS_ALLOWED_ORIGINS', ["https://chopper-mu.vercel.app"])
+        
+        # Extract the origin from the request headers
+        origin = request.headers.get('Origin', '')
+        
+        # Check if the origin is in our allowed list or we allow all origins
+        if getattr(settings, 'CORS_ALLOW_ALL_ORIGINS', True) or origin in origins:
+            # Set the specific origin instead of a wildcard for credentials support
+            response['Access-Control-Allow-Origin'] = origin or '*'
+        else:
+            # If not in allowed origins, set the first allowed origin as default
+            response['Access-Control-Allow-Origin'] = origins[0] if origins else '*'
+            
         response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
-        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-CSRFToken'
         response['Access-Control-Allow-Credentials'] = 'true'
+        
         return response
 
 class TokenValidationMiddleware(MiddlewareMixin):
@@ -116,10 +130,22 @@ class CorsMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         
-        # Add CORS headers to every response
-        response["Access-Control-Allow-Origin"] = "*"  # Or specific origins
+        # Get allowed origins from settings
+        origins = getattr(settings, 'CORS_ALLOWED_ORIGINS', ["https://chopper-mu.vercel.app"])
+        
+        # Extract the origin from the request headers
+        origin = request.headers.get('Origin', '')
+        
+        # Check if the origin is in our allowed list or we allow all origins
+        if getattr(settings, 'CORS_ALLOW_ALL_ORIGINS', True) or origin in origins:
+            # Set the specific origin instead of a wildcard for credentials support
+            response["Access-Control-Allow-Origin"] = origin or '*'
+        else:
+            # If not in allowed origins, set the first allowed origin as default
+            response["Access-Control-Allow-Origin"] = origins[0] if origins else '*'
+            
         response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-CSRFToken"
         response["Access-Control-Allow-Credentials"] = "true"
         
         return response 
