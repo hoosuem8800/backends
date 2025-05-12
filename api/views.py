@@ -1898,3 +1898,64 @@ class CreatorViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff and self.request.user.role != 'admin':
             raise PermissionDenied("Only administrators can create team members")
         serializer.save()
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def proxy_image(request):
+    """
+    Proxy for securely fetching images from HTTP sources to avoid mixed content errors
+    """
+    import requests
+    from django.http import HttpResponse, FileResponse
+    from io import BytesIO
+    import mimetypes
+    import urllib.parse
+
+    # Get image URL from request parameters
+    url = request.GET.get('url')
+    if not url:
+        return Response({'error': 'No URL provided'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Basic URL validation
+    try:
+        parsed_url = urllib.parse.urlparse(url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            return Response({'error': 'Invalid URL format'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': f'Invalid URL: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Fetch the image
+        response = requests.get(url, stream=True, timeout=10)
+        if response.status_code != 200:
+            return Response(
+                {'error': f'Failed to fetch image, status code: {response.status_code}'}, 
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+        
+        # Determine content type
+        content_type = response.headers.get('Content-Type')
+        if not content_type or not content_type.startswith('image/'):
+            # Try to guess from URL if server didn't provide content type
+            content_type, _ = mimetypes.guess_type(url)
+            if not content_type or not content_type.startswith('image/'):
+                content_type = 'image/jpeg'  # Default to JPEG
+        
+        # Create file-like object from image data
+        image_data = BytesIO(response.content)
+        
+        # Return the image with proper content type
+        response = FileResponse(image_data, content_type=content_type)
+        
+        # Add CORS headers to ensure the image can be loaded by the frontend
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type'
+        
+        return response
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Error proxying image: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

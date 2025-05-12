@@ -5,7 +5,7 @@ from .views import (
     UserViewSet, UserProfileViewSet, ScanViewSet, AppointmentViewSet,
     PaymentViewSet, NotificationViewSet, ConsultationViewSet,
     DoctorViewSet, AssistantViewSet, predict_scan, XRayImageViewSet,
-    CreatorViewSet, predict_view
+    CreatorViewSet, predict_view, proxy_image
 )
 
 router = DefaultRouter()
@@ -28,4 +28,5 @@ urlpatterns = [
     path('predict-scan/', predict_scan, name='predict-scan'),
     path('predict/', predict_view, name='predict'),
     path('xray-analyze/', predict_scan, name='xray-analyze'),  # Alternative endpoint for clarity
+    path('proxy-image/', proxy_image, name='proxy-image'),  # New endpoint for proxying images
 ] 
