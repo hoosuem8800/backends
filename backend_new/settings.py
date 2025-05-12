@@ -136,7 +136,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 
 # Change from 'UTC' to a fixed timezone that doesn't depend on Windows system time
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Paris'
 
 # Make sure this is False to prevent using system timezone
 USE_TZ = True
