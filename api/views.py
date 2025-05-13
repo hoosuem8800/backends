@@ -727,11 +727,8 @@ class ScanViewSet(viewsets.ModelViewSet):
                 Q(user=self.request.user) |
                 Q(consultations__doctor=self.request.user)
             ).distinct()
-        elif self.request.user.role in ['assistant', 'admin'] or self.request.user.is_staff:
-            # Assistants and admins can see all scans
-            return Scan.objects.all()
         else:
-            # Regular users see their own scans
+            # All other users (including admin and assistant) see only their own scans
             return Scan.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -1775,9 +1772,21 @@ class XRayImageViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        # Staff users (admin, assistant, doctor) can see all X-rays
-        if user.is_staff or getattr(user, 'role', '') in ['admin', 'assistant', 'doctor']:
-            return XRayImage.objects.all().order_by('-upload_date')
+        # Doctors can see X-rays from their patients
+        if getattr(user, 'role', '') == 'doctor':
+            return XRayImage.objects.filter(
+                Q(patient=user) |  # Their own X-rays
+                Q(appointment__doctor=user)  # X-rays from patients they've seen
+            ).order_by('-upload_date')
+        # Assistants can see X-rays they've uploaded
+        elif getattr(user, 'role', '') == 'assistant':
+            return XRayImage.objects.filter(
+                Q(patient=user) |  # Their own X-rays 
+                Q(assistant=user)  # X-rays they've uploaded
+            ).order_by('-upload_date')
+        # Admin users can see their own X-rays
+        elif getattr(user, 'role', '') == 'admin' or user.is_staff:
+            return XRayImage.objects.filter(patient=user).order_by('-upload_date')
         # Regular users (patients) can only see their own X-rays
         else:
             return XRayImage.objects.filter(patient=user).order_by('-upload_date')
