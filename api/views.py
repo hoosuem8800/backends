@@ -1119,24 +1119,34 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # Check for appointment conflicts
         date_time = serializer.validated_data.get('date_time')
         
-        # Ensure date_time is in UTC
-        try:
-            if date_time and not timezone.is_aware(date_time):
-                date_time = timezone.make_aware(date_time, pytz.UTC)
-        except Exception as e:
-            logger.error(f"Error making date_time timezone aware: {str(e)}")
-            # Try a more basic approach as fallback
-            if date_time and not timezone.is_aware(date_time):
-                try:
-                    date_time = timezone.make_aware(date_time)
-                except Exception:
-                    # Continue with original date_time if all else fails
-                    pass
+        # Remove any timezone information to prevent shifts
+        if date_time and timezone.is_aware(date_time):
+            # Convert to naive datetime to prevent timezone shifts
+            date_time = date_time.replace(tzinfo=None)
             
-        if Appointment.objects.filter(
-            date_time=date_time,
+        # Check for conflicts with naive datetimes
+        conflicts = False
+        appointments = Appointment.objects.filter(
             status__in=['pending', 'confirmed']
-        ).exists():
+        )
+        
+        # Check if any existing appointment has the same hour and minute on the same day
+        for appointment in appointments:
+            apt_dt = appointment.date_time
+            # Make the appointment datetime naive if it's timezone aware
+            if timezone.is_aware(apt_dt):
+                apt_dt = apt_dt.replace(tzinfo=None)
+            
+            # Compare year, month, day, hour, and minute
+            if (apt_dt.year == date_time.year and
+                apt_dt.month == date_time.month and
+                apt_dt.day == date_time.day and
+                apt_dt.hour == date_time.hour and
+                apt_dt.minute == date_time.minute):
+                conflicts = True
+                break
+        
+        if conflicts:
             raise AppointmentConflictException()
         
         # Check if this is an admin-created appointment
@@ -1185,7 +1195,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         Get all taken time slots for a specific date.
         Query parameter: date (YYYY-MM-DD)
         """
-        from datetime import datetime, time
+        from datetime import datetime
+        import pytz
         
         date = request.query_params.get('date')
         if not date:
@@ -1198,21 +1209,29 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             # Parse the date string to datetime object
             date_obj = datetime.strptime(date, '%Y-%m-%d').date()
             
-            # Simplify the approach to avoid timezone issues
-            # Get all appointments for the specified date using date__exact
+            # Get all appointments for the specified date, ignoring timezone
             appointments = Appointment.objects.filter(
                 date_time__date=date_obj,
                 status__in=['pending', 'confirmed']  # Only consider active appointments
             )
             
-            # Extract the time slots from the appointments without timezone manipulation
+            # Extract the time slots in both formats for frontend compatibility
             taken_slots = []
             for appointment in appointments:
-                # Return time in 24-hour format (HH:MM) for consistent comparison with frontend
-                time_str = appointment.date_time.strftime('%H:%M')
-                taken_slots.append(time_str)
+                # 24-hour format (HH:MM) without timezone conversion
+                time_24h = appointment.date_time.strftime('%H:%M')
+                taken_slots.append(time_24h)
+                
+                # Also add 12-hour format (HH:MM AM/PM) for backwards compatibility
+                time_12h = appointment.date_time.strftime('%I:%M %p')
+                # Fix formatting (remove leading zero for hour)
+                time_12h = time_12h.replace(' 0', ' ').lstrip('0')
+                taken_slots.append(time_12h)
             
-            return Response({'taken_slots': taken_slots})
+            # Log the taken slots for debugging
+            print(f"Taken slots for {date}: {taken_slots}")
+            
+            return Response(taken_slots)
             
         except ValueError:
             return Response(

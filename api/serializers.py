@@ -127,28 +127,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
         
     def validate_date_time(self, value):
         """
-        Ensure that date_time is always in UTC to prevent Windows time issues
+        Ensure that date_time is preserved as-is without timezone handling,
+        avoiding the 2-hour shift problem on Windows systems.
         """
-        try:
-            # Make sure the date_time is timezone aware (in UTC)
-            if not timezone.is_aware(value):
-                value = timezone.make_aware(value, pytz.UTC)
-            else:
-                # If already timezone aware, ensure it's in UTC
-                value = value.astimezone(pytz.UTC)
-        except Exception as e:
-            # If any error occurs during timezone conversion, log it and return the original value
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error converting timezone: {str(e)}")
-            
-            # As a fallback, try to make it timezone aware without specifying the timezone
-            if not timezone.is_aware(value):
-                try:
-                    value = timezone.make_aware(value)
-                except Exception:
-                    # If all else fails, just return the original value
-                    pass
-                    
+        # No timezone conversion - just use the datetime as provided
+        # This ensures consistent behavior across all platforms
         return value
 
 class PaymentSerializer(serializers.ModelSerializer):

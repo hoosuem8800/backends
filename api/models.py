@@ -178,6 +178,14 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"Appointment for {self.user.username} on {self.date_time}"
+        
+    def save(self, *args, **kwargs):
+        # Ensure date_time is saved as-is without timezone conversion
+        # This prevents the 2-hour shift issue on Windows systems
+        if self.date_time and timezone.is_aware(self.date_time):
+            # If timezone aware, convert to naive datetime to prevent shifts
+            self.date_time = self.date_time.replace(tzinfo=None)
+        super().save(*args, **kwargs)
 
 class Scan(models.Model):
     STATUS_CHOICES = [
