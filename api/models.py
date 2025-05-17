@@ -180,11 +180,15 @@ class Appointment(models.Model):
         return f"Appointment for {self.user.username} on {self.date_time}"
         
     def save(self, *args, **kwargs):
-        # Ensure date_time is saved as-is without timezone conversion
-        # This prevents the 2-hour shift issue on Windows systems
-        if self.date_time and timezone.is_aware(self.date_time):
-            # If timezone aware, convert to naive datetime to prevent shifts
-            self.date_time = self.date_time.replace(tzinfo=None)
+        # IMPORTANT: Ensure date_time is saved as a naive datetime without timezone
+        # information to prevent any timezone conversion issues
+        if self.date_time:
+            # If date_time is timezone aware (has tzinfo), remove timezone info
+            if hasattr(self.date_time, 'tzinfo') and self.date_time.tzinfo:
+                # Convert to naive datetime by removing tzinfo
+                self.date_time = self.date_time.replace(tzinfo=None)
+        
+        # Call the original save method
         super().save(*args, **kwargs)
 
 class Scan(models.Model):

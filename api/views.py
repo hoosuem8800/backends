@@ -1196,7 +1196,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         Query parameter: date (YYYY-MM-DD)
         """
         from datetime import datetime
-        import pytz
         
         date = request.query_params.get('date')
         if not date:
@@ -1206,10 +1205,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            # Parse the date string to datetime object
+            # Parse the date string to date object (without timezone)
             date_obj = datetime.strptime(date, '%Y-%m-%d').date()
             
-            # Get all appointments for the specified date, ignoring timezone
+            # Get all appointments for the specified date using naive datetimes
             appointments = Appointment.objects.filter(
                 date_time__date=date_obj,
                 status__in=['pending', 'confirmed']  # Only consider active appointments
@@ -1218,14 +1217,30 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             # Extract the time slots in both formats for frontend compatibility
             taken_slots = []
             for appointment in appointments:
-                # 24-hour format (HH:MM) without timezone conversion
-                time_24h = appointment.date_time.strftime('%H:%M')
+                # Get native datetime object without timezone influence
+                dt = appointment.date_time
+                
+                # Explicitly create time strings directly from the stored datetime values
+                # 24-hour format (HH:MM)
+                time_24h = f"{dt.hour:02d}:{dt.minute:02d}"
                 taken_slots.append(time_24h)
                 
-                # Also add 12-hour format (HH:MM AM/PM) for backwards compatibility
-                time_12h = appointment.date_time.strftime('%I:%M %p')
-                # Fix formatting (remove leading zero for hour)
-                time_12h = time_12h.replace(' 0', ' ').lstrip('0')
+                # 12-hour format (HH:MM AM/PM)
+                if dt.hour == 0:
+                    hour_12 = 12
+                    period = "AM"
+                elif dt.hour < 12:
+                    hour_12 = dt.hour
+                    period = "AM"
+                elif dt.hour == 12:
+                    hour_12 = 12
+                    period = "PM"
+                else:
+                    hour_12 = dt.hour - 12
+                    period = "PM"
+                
+                # Format 12-hour time
+                time_12h = f"{hour_12}:{dt.minute:02d} {period}"
                 taken_slots.append(time_12h)
             
             # Log the taken slots for debugging

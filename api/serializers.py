@@ -127,11 +127,12 @@ class AppointmentSerializer(serializers.ModelSerializer):
         
     def validate_date_time(self, value):
         """
-        Ensure that date_time is preserved as-is without timezone handling,
-        avoiding the 2-hour shift problem on Windows systems.
+        Preserve the datetime exactly as provided without timezone handling.
+        This prevents timezone conversion issues on different platforms.
         """
-        # No timezone conversion - just use the datetime as provided
-        # This ensures consistent behavior across all platforms
+        if value and hasattr(value, 'tzinfo') and value.tzinfo:
+            # Remove timezone info to store as naive datetime
+            return value.replace(tzinfo=None)
         return value
 
 class PaymentSerializer(serializers.ModelSerializer):
