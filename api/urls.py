@@ -5,7 +5,7 @@ from .views import (
     UserViewSet, UserProfileViewSet, ScanViewSet, AppointmentViewSet,
     PaymentViewSet, NotificationViewSet, ConsultationViewSet,
     DoctorViewSet, AssistantViewSet, predict_scan, XRayImageViewSet,
-    CreatorViewSet, predict_view, proxy_image
+    CreatorViewSet, predict_view, proxy_image, upgrade_subscription
 )
 
 router = DefaultRouter()
@@ -22,6 +22,7 @@ router.register(r'xrayimage', XRayImageViewSet, basename='xrayimage')
 router.register(r'creators', CreatorViewSet, basename='creator')
 
 urlpatterns = [
+    path('users/upgrade_subscription/', upgrade_subscription, name='upgrade-subscription'),
     path('', include(router.urls)),
     path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

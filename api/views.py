@@ -1953,24 +1953,48 @@ def proxy_image(request):
     from io import BytesIO
     import mimetypes
     import urllib.parse
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"Proxy image request from user {request.user.id} with role {getattr(request.user, 'role', 'unknown')}")
 
     # Get image URL from request parameters
     url = request.GET.get('url')
     if not url:
         return Response({'error': 'No URL provided'}, status=status.HTTP_400_BAD_REQUEST)
     
+    # Log the request details
+    logger.info(f"Proxying image from: {url}")
+    
     # Basic URL validation
     try:
         parsed_url = urllib.parse.urlparse(url)
         if not parsed_url.scheme or not parsed_url.netloc:
+            logger.error(f"Invalid URL format: {url}")
             return Response({'error': 'Invalid URL format'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.error(f"URL parsing error: {str(e)}")
         return Response({'error': f'Invalid URL: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
+        # Check if the URL is for local media (which needs authentication)
+        is_local_media = 'media/' in url and ('localhost' in url or '127.0.0.1' in url)
+        
+        # Setup headers including auth if needed
+        headers = {}
+        if is_local_media:
+            # Get the auth token from the user's request
+            auth_header = request.META.get('HTTP_AUTHORIZATION')
+            if auth_header:
+                headers['Authorization'] = auth_header
+                logger.info("Adding authorization header to media fetch request")
+        
         # Fetch the image
-        response = requests.get(url, stream=True, timeout=10)
+        logger.info(f"Fetching image with headers: {headers}")
+        response = requests.get(url, stream=True, timeout=10, headers=headers)
+        
         if response.status_code != 200:
+            logger.error(f"Failed to fetch image: {response.status_code}")
             return Response(
                 {'error': f'Failed to fetch image, status code: {response.status_code}'}, 
                 status=status.HTTP_502_BAD_GATEWAY
@@ -1993,12 +2017,33 @@ def proxy_image(request):
         # Add CORS headers to ensure the image can be loaded by the frontend
         response['Access-Control-Allow-Origin'] = '*'
         response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        response['Access-Control-Allow-Headers'] = 'Content-Type'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         
         return response
         
     except Exception as e:
+        logger.error(f"Error proxying image: {str(e)}")
         return Response(
             {'error': f'Error proxying image: {str(e)}'}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upgrade_subscription(request):
+    """
+    Upgrade user's subscription to premium
+    """
+    try:
+        user = request.user
+        user.subscription_type = 'premium'
+        user.save()
+        
+        return Response({
+            'message': 'Successfully upgraded to premium',
+            'subscription_type': user.subscription_type
+        })
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
