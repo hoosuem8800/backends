@@ -1675,36 +1675,6 @@ class DoctorViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(doctors, many=True)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['get'])
-    def schedule(self, request, pk=None):
-        """Get doctor's available schedule"""
-        doctor = self.get_object()
-        return Response({
-            'available_days': doctor.available_days,
-            'available_hours': doctor.available_hours
-        })
-    
-    @action(detail=True, methods=['post'])
-    def update_schedule(self, request, pk=None):
-        """Update doctor's schedule"""
-        if request.user.role != 'doctor' or request.user.doctor_profile.id != int(pk):
-            return Response(
-                {'error': 'Only the doctor can update their schedule'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        doctor = self.get_object()
-        available_days = request.data.get('available_days')
-        available_hours = request.data.get('available_hours')
-        
-        if available_days is not None:
-            doctor.available_days = available_days
-        if available_hours is not None:
-            doctor.available_hours = available_hours
-        
-        doctor.save()
-        return Response(self.get_serializer(doctor).data)
-        
     @action(detail=False, methods=['get'])
     def specialties(self, request):
         """Get list of all specialties with count of doctors"""

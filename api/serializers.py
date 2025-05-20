@@ -246,16 +246,17 @@ class DoctorSerializer(serializers.ModelSerializer):
     specialty_display = serializers.SerializerMethodField()
     profile_picture_url = serializers.SerializerMethodField()
     gender_display = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(write_only=True, source='user.id', required=False)
     
     class Meta:
         model = Doctor
         fields = [
-            'id', 'user', 'full_name', 'specialty', 'specialty_display',
+            'id', 'user', 'user_id', 'full_name', 'specialty', 'specialty_display',
             'years_of_experience', 'age', 'gender', 'gender_display',
             'license_number', 'profile_picture', 'profile_picture_url', 
             'bio', 'education', 'awards', 'languages',
             'consultation_fee', 'rating', 'total_consultations', 
-            'available_days', 'available_hours', 'is_accepting_new_patients'
+            'is_accepting_new_patients'
         ]
         read_only_fields = ['id', 'rating', 'total_consultations']
     
@@ -272,6 +273,61 @@ class DoctorSerializer(serializers.ModelSerializer):
         if obj.profile_picture:
             return obj.profile_picture.url
         return None
+        
+    def create(self, validated_data):
+        """Custom create method to handle user relationship properly"""
+        # Extract user data if it exists in the validated data
+        user_data = validated_data.pop('user', None)
+        user_id = None
+        
+        # Get user ID from the request data
+        if self.context and 'request' in self.context:
+            request = self.context.get('request')
+            if request and request.data:
+                # Try both 'user' and 'user_id' fields
+                user_id = request.data.get('user') or request.data.get('user_id')
+                
+                # Log the request data for debugging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Doctor creation request data: {request.data}")
+        
+        # If we have a user ID, use it
+        if user_id:
+            try:
+                # Convert to int if it's a string
+                if isinstance(user_id, str) and user_id.isdigit():
+                    user_id = int(user_id)
+                
+                user = User.objects.get(id=user_id)
+                
+                # Check if this user already has a doctor profile
+                if Doctor.objects.filter(user=user).exists():
+                    raise serializers.ValidationError({"user": f"User with ID {user_id} already has a doctor profile"})
+                
+                # Create doctor instance
+                doctor = Doctor.objects.create(user=user, **validated_data)
+                return doctor
+            except User.DoesNotExist:
+                raise serializers.ValidationError({"user": f"User with ID {user_id} does not exist"})
+            except Exception as e:
+                # Log the error for debugging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating doctor: {str(e)}")
+                raise serializers.ValidationError({"detail": f"Error creating doctor: {str(e)}"})
+        else:
+            raise serializers.ValidationError({"user": "User ID is required"})
+    
+    def update(self, instance, validated_data):
+        """Custom update method to handle special fields"""
+        # Remove user data if present, as we don't want to update the user
+        validated_data.pop('user', None)
+        
+        # Update the instance with all remaining fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+            
+        instance.save()
+        return instance
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:

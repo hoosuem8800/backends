@@ -89,7 +89,6 @@ class Doctor(models.Model):
     GENDER_CHOICES = [
         ('male', 'Male'),
         ('female', 'Female'),
-        ('other', 'Other'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='doctor_profile')
@@ -104,8 +103,6 @@ class Doctor(models.Model):
     awards = models.TextField(blank=True, null=True)
     languages = models.CharField(max_length=200, blank=True, null=True, help_text="Languages spoken, comma separated")
     consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    available_days = models.JSONField(default=list)  # List of days the doctor is available
-    available_hours = models.JSONField(default=dict)  # Dict of available hours for each day
     is_accepting_new_patients = models.BooleanField(default=True)
     rating = models.DecimalField(
         max_digits=3, 
